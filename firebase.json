@@ -5,8 +5,13 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "**",
-      "!index.html"
+      ".firebaserc",
+      ".gitignore",
+      ".prettierrc",
+      "firebase.json",
+      "package.json",
+      "package-lock.json",
+      "README.md"
     ],
     "rewrites": [
       {
