@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>% v barvah</title>
+    <style>
+      button {
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+      }
+
+      form {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+
+      #wrapper {
+        display: flex;
+      }
+
+      #wrapper > * {
+        height: 100%;
+        position: relative;
+        display: block;
+      }
+
+      #canvas-container {
+        width: 75%;
+      }
+
+      #canvas-container > * {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+
+      #canvas-container #canvas {
+        z-index: 0;
+      }
+
+      #canvas-container #canvas-selector {
+        z-index: 1;
+      }
+
+      #wrapper aside {
+        width: 25%;
+      }
+
+      #wrapper #result .color-result .color {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        margin-right: 16px;
+      }
+
+      #wrapper #result .color-result {
+        display: flex;
+        align-items: center;
+      }
+    </style>
+    <!-- TODO: Move styles to separate file -->
+  </head>
+  <body>
+    <h1>% v barvah</h1>
+    <ol>
+      <li>
+        Izberi sliko: <input type="file" id="imgFile" onchange="loadImage()" />
+      </li>
+      <li>Z miško označi želeno območje na fotografiji</li>
+      <li>
+        Določi število različnih barv:
+        <input type="number" id="color-num" value="4" min="1" max="64" />
+      </li>
+      <li>Analiziraj barve s pritiskom na gumb "Analiziraj"</li>
+    </ol>
+    <main id="wrapper">
+      <section id="canvas-container">
+        <canvas id="canvas"></canvas>
+        <canvas id="canvas-selector"></canvas>
+      </section>
+
+      <aside>
+        <form>
+          <button
+            type="button"
+            onclick="analyze(); return false;"
+            style="background-color: #4caf50"
+          >
+            Analiziraj
+          </button>
+
+          <button
+            type="button"
+            onclick="clearResult(); return false;"
+            style="background-color: #727272"
+          >
+            Pobriši
+          </button>
+        </form>
+        <section id="result"></section>
+      </aside>
+    </main>
+
+    <script type="text/javascript">
+      const resultBox = document.getElementById('result');
+
+      // Canvas for image
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Canvas for selector
+      const canvasSelector = document.getElementById('canvas-selector');
+      const ctxSelector = canvasSelector.getContext('2d');
+      ctxSelector.strokeStyle = 'red';
+      ctxSelector.lineWidth = 3;
+
+      let canvasOffset, offsetX, offsetY, scrollX, scrollY;
+
+      let isDown = false;
+
+      let selectorX, selectorY, selectorWidth, selectorHeight;
+
+      const writeResult = (msg, showTime = true) => {
+        const p = document.createElement('p');
+        p.innerHTML = showTime
+          ? `[<span>${new Date().toLocaleTimeString()}</span>] - ` + msg
+          : msg;
+        resultBox.prepend(p);
+      };
+
+      const clearResult = () => {
+        while (resultBox.firstChild) {
+          resultBox.removeChild(resultBox.lastChild);
+        }
+      };
+
+      const loadImage = () => {
+        let input, file, fr, img;
+
+        canvasSelector.onmousedown = handleMouseDown;
+        canvasSelector.onmousemove = handleMouseMove;
+        canvasSelector.onmouseup = handleMouseDone;
+        canvasSelector.onmouseout = handleMouseDone;
+
+        clearResult();
+
+        const imageLoaded = () => {
+          const rect = canvas.getBoundingClientRect();
+          const width = img.width;
+          const height = img.height;
+          canvas.height = height;
+          canvas.width = width;
+          canvasSelector.height = height;
+          canvasSelector.width = width;
+          // TODO: Scale down image
+          ctx.drawImage(img, 0, 0);
+        };
+
+        const createImage = () => {
+          img = new Image();
+          img.onload = imageLoaded;
+          img.src = fr.result;
+
+          writeResult('Fotografija naložena');
+          canvasSelectorInit();
+        };
+
+        if (typeof window.FileReader !== 'function') {
+          writeResult('Ta brskalnik ne podpira nalaganja fotografij.');
+          return;
+        }
+
+        input = document.getElementById('imgFile');
+        if (!input) {
+          writeResult('Prišlo je do napake pri nalaganju fotografije.');
+        } else if (!input.files) {
+          writeResult('Ta brskalnik ne podpira nalaganje fotografij.');
+        } else if (!input.files[0]) {
+          writeResult("Naloži fotografijo pred klikom na gumb 'Analiziraj'");
+        } else {
+          file = input.files[0];
+          fr = new FileReader();
+          fr.onload = createImage;
+          fr.readAsDataURL(file);
+        }
+      };
+
+      const handleMouseDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        selectorX = parseInt((e.clientX - offsetX).toString());
+        selectorY = parseInt((e.clientY - offsetY).toString());
+
+        isDown = true;
+      };
+
+      const handleMouseDone = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        isDown = false;
+      };
+
+      const handleMouseMove = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!isDown) {
+          return;
+        }
+
+        const mouseX = parseInt((e.clientX - offsetX).toString());
+        const mouseY = parseInt((e.clientY - offsetY).toString());
+
+        ctxSelector.clearRect(
+          0,
+          0,
+          canvasSelector.width,
+          canvasSelector.height
+        );
+
+        selectorWidth = mouseX - selectorX;
+        selectorHeight = mouseY - selectorY;
+
+        ctxSelector.strokeRect(
+          selectorX,
+          selectorY,
+          selectorWidth,
+          selectorHeight
+        );
+      };
+
+      const getOffset = (element) => {
+        if (!element.getClientRects().length) {
+          return { top: 0, left: 0 };
+        }
+
+        let rect = element.getBoundingClientRect();
+        let win = element.ownerDocument.defaultView;
+        return {
+          top: rect.top + win.pageYOffset,
+          left: rect.left + win.pageXOffset,
+        };
+      };
+
+      const canvasSelectorInit = () => {
+        canvasOffset = getOffset(canvasSelector);
+        offsetX = canvasOffset.left;
+        offsetY = canvasOffset.top;
+        scrollX = canvas.scrollLeft;
+        scrollY = canvas.scrollTop;
+
+        isDown = false;
+
+        ctxSelector.clearRect(
+          0,
+          0,
+          canvasSelector.width,
+          canvasSelector.height
+        );
+      };
+
+      const analyze = () => {
+        const maxColors = document.getElementById('color-num').value;
+
+        const x = selectorX;
+        const y = selectorY;
+        const w = selectorWidth;
+        const h = selectorHeight;
+
+        if (x == null || y == null || w == null || h == null) {
+          writeResult('Ni izbranega območja na fotografiji.');
+          return;
+        }
+
+        const colorsObj = {};
+        for (let i = x; i < x + w; i++) {
+          for (let j = y; j < y + h; j++) {
+            const data = ctx.getImageData(i, j, 1, 1).data;
+            const [r, g, b, a] = data;
+            const str = `rgba(${r}, ${g}, ${b}, ${a})`;
+            colorsObj[str] = colorsObj[str] + 1 || 1;
+          }
+        }
+
+        const sortable = [];
+        for (const c in colorsObj) {
+          sortable.push([c, colorsObj[c]]);
+        }
+        sortable.sort((a, b) => b[1] - a[1]);
+
+        const colors = sortable.slice(0, maxColors);
+        const total = colors.reduce((prev, curr) => prev + curr[1], 0);
+        for (const c of colors) {
+          const pct = Math.round((c[1] / total) * 100);
+          writeResult(
+            `
+            <div class="color-result">
+                <span class="color" style="background: ${c[0]};"></span>
+                <span>${pct}%</span>
+			</div>
+          `,
+            false
+          );
+        }
+
+        writeResult(`Rezultati za ${maxColors} barv:`);
+      };
+    </script>
+    <!-- TODO: Move script to separate file -->
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "colorpct",
+  "version": "1.0.0",
+  "description": "Tool that calculates RGBA percentage of the selected image",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "firebase deploy"
+  },
+  "author": "Matej Hočevar",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^2.2.1"
+  }
+}
